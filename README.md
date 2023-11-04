@@ -1,2 +1,6 @@
-# CNN_based_Bounding_Box_Regression
-Neural Network using PyTorch to detect License plates of Automobiles using CNN based bounding box regression technique.
+# CNN based Bounding Box Regression
+
+This project is an end to end implementation of a CNN based bounding box regression technique for detection of
+Automobile license plates.
+
+Detailed usage will follow post completion of all test case coverage and training model update.
