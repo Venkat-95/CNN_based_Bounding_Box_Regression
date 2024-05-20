@@ -2,17 +2,37 @@ import os
 import glob
 import cv2
 import json
+from pathlib import Path
 
 from pprint import pprint
 from xml.etree import ElementTree as ET
 
+CURRENT_FILE_PATH = Path(__file__).resolve()
+DATA_FILE_PATH = CURRENT_FILE_PATH.parent.parent / 'data'
+
+
+def check_directory(file_path: Path) -> tuple[bool, bool]:
+    is_directory = False
+    files_present = False
+
+    try:
+        if os.listdir(file_path):
+            is_directory = True
+            files_present = True
+    except:
+        files_present = False
+    return is_directory, files_present
+
 
 class Annotate:
     def __init__(self):
-        self.path_images = "../data/images"
-        self.path_annotations = "../data/annotations"
-        self.is_images_directory, self.images_present = self.check_directory(self.path_images)
-        self.is_annotations_directory, self.annotations_present = self.check_directory(self.path_annotations)
+        self.path_images: Path = DATA_FILE_PATH / 'images'
+        self.path_annotations: Path = DATA_FILE_PATH / 'annotations_XML'
+        self.is_images_directory, self.images_present = check_directory(self.path_images)
+        self.is_annotations_directory, self.annotations_present = check_directory(self.path_annotations)
+        if not self.is_annotations_directory or not self.annotations_present:
+            self.path_annotations = DATA_FILE_PATH / 'annotations_json'
+            self.is_annotations_directory, self.annotations_present = check_directory(self.path_annotations)
 
     def draw_annotation(self, event, x, y, flags, param):
         global ix, iy, drawing
@@ -27,15 +47,18 @@ class Annotate:
             print(ix, iy, x, y)
             self.img_data['bboxes'].append((ix, iy, x, y))
 
-    def process_images(self, path_images: str):
+    def process_images(self, path_images: Path):
         data_annotations = []
-        for file in glob.glob(path_images + "/*.png"):
-            print('file:', file)
+        image_files = list(self.path_images.glob('*.png'))
+        os.makedirs(DATA_FILE_PATH / 'annotations_json',exist_ok=True)
+        self.path_annotations = DATA_FILE_PATH / 'annotations_json'
+        for img_file in image_files:
+            print('file:', img_file)
             img_data = {}
-            img_data['filepath'] = file
+            img_data['filepath'] = os.path.basename(img_file)
             img_data['class'] = 'license'
             img_data['bboxes'] = []
-            self.img = cv2.imread(img_data['filepath'])
+            self.img = cv2.imread(str(img_file))
             height, width, channels = self.img.shape
             img_data['size'] = (height, width, channels)
             self.img_data = img_data
@@ -56,17 +79,19 @@ class Annotate:
                 data_annotations.append(img_data)
             if (check):
                 break
-        with open('../data/annotation_data.json', 'w') as f:
+        with open(os.path.join(self.path_annotations,'annotation_data.json'), 'w') as f:
             json.dump(data_annotations, f, indent=2)
+
     '''
     Following are static methods because the functionality is called from
     the child class preprocessing.py-> ImageDataGenerator
     '''
+
     @staticmethod
-    def get_json_data(path_annotations):
+    def get_json_data(path_annotations: Path):
         data_dict = {}
         img_info_dict = {}
-        with open(os.path.abspath(path_annotations + "/annotation_data.json"), 'r') as json_file:
+        with open(path_annotations / "annotation_data.json", 'r') as json_file:
             data_json = json.load(json_file)
         for i in data_json:
             _, img_name = os.path.split(i['filepath'])
@@ -75,12 +100,13 @@ class Annotate:
         return data_dict, img_info_dict
 
     @staticmethod
-    def get_xml_data(path_annotations: str):
+    def get_xml_data(path_annotations: Path):
         data_dict = {}
         img_info_dict = {}
-        for i in glob.glob(path_annotations + "/*.xml"):
-            _, file_name = os.path.split(i)
-            data_xml = ET.parse(i)
+        XML_file_list = path_annotations.glob("*.xml")
+        for file_path in XML_file_list:
+            _, file_name = os.path.split(file_path)
+            data_xml = ET.parse(file_path)
             myroot = data_xml.getroot()
             img_name = str(myroot.find("filename").text)
             height = int(myroot.find("size")[0].text)
@@ -98,21 +124,8 @@ class Annotate:
                 bbox_coordinates.append([class_name, [xmin, ymin, xmax, ymax]])
                 img_info_dict[img_name] = [height, width, channels]
                 data_dict[img_name] = bbox_coordinates
-        #pprint(data_dict)
+        # pprint(data_dict)
         return data_dict, img_info_dict
-
-    def check_directory(self, path: str):
-        is_directory = False
-        files_present = False
-        # assert os.path.isdir(path), f"Please input a valid path. Received path{path}"
-
-        try:
-            if os.listdir(path):
-                is_directory = True
-                files_present = True
-        except:
-            files_present = False
-        return is_directory, files_present
 
 
 if __name__ == "__main__":
