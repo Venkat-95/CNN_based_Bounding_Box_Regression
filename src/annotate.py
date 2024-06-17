@@ -1,10 +1,8 @@
 import os
-import glob
 import cv2
 import json
 from pathlib import Path
 
-from pprint import pprint
 from xml.etree import ElementTree as ET
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
@@ -126,7 +124,3 @@ class Annotate:
                 data_dict[img_name] = bbox_coordinates
         # pprint(data_dict)
         return data_dict, img_info_dict
-
-
-if __name__ == "__main__":
-    annotation_class_1 = Annotate()
